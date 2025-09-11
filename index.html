@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Personal Finance Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="container">
+    <h1>Personal Finance Dashboard</h1>
+    <p class="muted">Local-only • Your data stays in your browser</p>
+  </header>
+
+  <main class="container grid">
+    <!-- KPIs -->
+    <section class="card kpis">
+      <div class="kpi"><h3>Income (mo)</h3><div id="kpi-income">$0</div></div>
+      <div class="kpi"><h3>Expenses (mo)</h3><div id="kpi-expenses">$0</div></div>
+      <div class="kpi"><h3>Net (mo)</h3><div id="kpi-net">$0</div></div>
+    </section>
+
+    <!-- Add Transaction -->
+    <section class="card">
+      <h2>Add Transaction</h2>
+      <form id="txn-form">
+        <label>Date <input type="date" id="date" required /></label>
+        <label>Type
+          <select id="type" required>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </label>
+        <label>Category
+          <select id="category"></select>
+        </label>
+        <label>Amount ($) <input type="number" id="amount" step="0.01" min="0" required /></label>
+        <label>Note <input type="text" id="note" placeholder="Optional" /></label>
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <!-- Budgets -->
+    <section class="card">
+      <h2>Budgets (per month)</h2>
+      <div id="budgets"></div>
+      <button id="save-budgets">Save Budgets</button>
+    </section>
+
+    <!-- Charts -->
+    <section class="card">
+      <h2>Expenses by Category (This Month)</h2>
+      <canvas id="catChart" height="120"></canvas>
+    </section>
+    <section class="card">
+      <h2>Monthly Cash Flow (Last 12 Months)</h2>
+      <canvas id="flowChart" height="120"></canvas>
+    </section>
+
+    <!-- Transactions Table -->
+    <section class="card">
+      <div class="table-head">
+        <h2>Transactions</h2>
+        <div class="actions">
+          <button id="export-csv">Export CSV</button>
+          <label class="import">
+            Import CSV <input type="file" id="import-csv" accept=".csv" />
+          </label>
+          <button id="reset-data" class="danger">Reset Data</button>
+        </div>
+      </div>
+      <table id="txn-table" aria-label="Transactions table">
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="container muted">
+    <small>For education only. Not financial advice.</small>
+  </footer>
+
+  <script src="script.js"></script>
+  
+</body>
+</html>
