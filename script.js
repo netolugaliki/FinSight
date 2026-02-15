@@ -1,88 +1,316 @@
-// ---------- Theme-aware chart defaults ----------
-Chart.defaults.font.family = `ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial`;
-Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#e5e7eb";
+// ===== Router =====
+const pages = document.querySelectorAll('.page');
+const links = document.querySelectorAll('.nav a');
+function showPage(hash){
+if(!hash) hash = '#home';
+pages.forEach(p => p.classList.toggle('active', ('#' + p.id) === hash));
+links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === hash));
+}
+window.addEventListener('hashchange', () => showPage(location.hash));
+showPage(location.hash);
 
-Chart.defaults.plugins.legend.labels.boxWidth = 14;
-Chart.defaults.plugins.legend.labels.boxHeight = 14;
-Chart.defaults.plugins.tooltip.backgroundColor = "rgba(0,0,0,0.75)";
-Chart.defaults.plugins.tooltip.padding = 10;
-Chart.defaults.plugins.tooltip.cornerRadius = 8;
-Chart.defaults.plugins.tooltip.titleFont = {weight: "600"};
+// ===== Transactions: Add -> Table + Storage =====
+const form = document.getElementById('txn-form');
+const tbody = document.getElementById('tx-list');
+const resetBtn = document.getElementById('resetBtn');
+const exportBtn = document.getElementById('exportCsvBtn');
+const importBtn = document.getElementById('importCsvBtn');
 
-Chart.defaults.elements.bar.borderRadius = 8;
-Chart.defaults.elements.bar.borderSkipped = false;
+// Use localStorage to persist
+const STORAGE_KEY = 'finsight_txns_v1';
 
-// Helper: get CSS variable
-const cssVar = (name) =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+/** Load/save helpers */
+function loadTxns(){
+try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+}catch{ return []; }
+}
+function saveTxns(list){
+localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
 
-// ---------- Expenses by Category (Pie / Doughnut) ----------
-const catCtx = document.getElementById("catChart").getContext("2d");
-const catChart = new Chart(catCtx, {
-  type: "doughnut",
-  data: {
-    labels: ["Food", "Rent", "Transport", "Utilities", "Fun"],
-    datasets: [
-      {
-        data: [500, 1200, 300, 150, 200],
-        backgroundColor: [
-          cssVar("--accent"),
-          cssVar("--accent-2"),
-          "#f59e0b",
-          "#a78bfa",
-          "#f472b6",
-        ],
-        borderWidth: 0,
-      },
-    ],
-  },
-  options: {
-    responsive: true,
-    cutout: "60%",
-    plugins: {
-      legend: { position: "bottom" },
-    },
-  },
+/** App state */
+let txns = loadTxns();
+
+/** Currency formatter */
+const fmtCurrency = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD' });
+
+/** Render table from state */
+function renderTable(){
+if(!tbody) return;
+tbody.innerHTML = '';
+// newest first by date
+const rows = [...txns].sort((a,b) => (b.date||'').localeCompare(a.date||'')); 
+for(const t of rows){
+    const tr = document.createElement('tr');
+    tr.dataset.id = String(t.id);
+    tr.innerHTML = `
+    <td>${t.date || ''}</td>
+    <td>${cap((t.type||'').toString())}</td>
+    <td>${t.category || ''}</td>
+    <td>${fmtCurrency.format(Number(t.amount||0))}</td>
+    <td>${escapeHtml(t.note || '')}</td>
+    <td><button class="icon-danger" title="Delete" data-action="del">
+            <span class="material-symbols-outlined">close</span>
+        </button></td>
+    `;
+    tbody.appendChild(tr);
+}
+}
+
+/** Add a transaction from the form */
+form?.addEventListener('submit', (e) => {
+e.preventDefault();
+const date = document.getElementById('date').value;
+const type = document.getElementById('type').value;
+const category = document.getElementById('category').value || 'Other';
+const amount = document.getElementById('amount').value;
+const note = document.getElementById('note').value;
+
+if(!date || !type || !amount){ return; }
+
+const txn = {
+    id: Date.now(), // simple id
+    date,
+    type,          // 'expense' | 'income'
+    category,
+    amount: Number(amount),
+    note
+};
+txns.push(txn);
+saveTxns(txns);
+renderTable();
+updateDashboard(); // <— keep Home in sync
+form.reset();
+// keep today's date selected (optional nicety)
+document.getElementById('date').valueAsDate = new Date();
 });
 
-// ---------- Monthly Cash Flow (Bar Chart) ----------
-const flowCtx = document.getElementById("flowChart").getContext("2d");
-const flowChart = new Chart(flowCtx, {
-  type: "bar",
-  data: {
-    labels: [
-      "Sep", "Oct", "Nov", "Dec", "Jan", "Feb",
-      "Mar", "Apr", "May", "Jun", "Jul", "Aug",
-    ],
+/** Delete handler via event delegation */
+tbody?.addEventListener('click', (e) => {
+const btn = e.target.closest('button[data-action="del"]');
+if(!btn) return;
+const tr = btn.closest('tr');
+const id = Number(tr?.dataset.id);
+if(!id) return;
+txns = txns.filter(t => t.id !== id);
+saveTxns(txns);
+renderTable();
+updateDashboard(); // <— keep Home in sync
+});
+
+/** Reset data button */
+resetBtn?.addEventListener('click', () => {
+if(confirm('Clear all transactions?')){
+    txns = [];
+    saveTxns(txns);
+    renderTable();
+    updateDashboard(); // <— keep Home in sync
+}
+});
+
+/** (Optional) Export CSV */
+exportBtn?.addEventListener('click', () => {
+if(!txns.length){ alert('No transactions to export.'); return; }
+const header = ['date','type','category','amount','note'];
+const lines = [header.join(',')].concat(
+    txns.map(t => [
+    t.date,
+    t.type,
+    csvEscape(t.category||''),
+    t.amount,
+    csvEscape(t.note||'')
+    ].join(','))
+);
+const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'transactions.csv';
+a.click();
+URL.revokeObjectURL(url);
+});
+
+/** (Optional) Import CSV (very basic) */
+importBtn?.addEventListener('click', async () => {
+const input = document.createElement('input');
+input.type = 'file';
+input.accept = '.csv,text/csv';
+input.onchange = async () => {
+    const file = input.files?.[0];
+    if(!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const [head, ...rows] = lines;
+    const cols = head.split(',').map(s=>s.trim().toLowerCase());
+    const idx = {
+    date: cols.indexOf('date'),
+    type: cols.indexOf('type'),
+    category: cols.indexOf('category'),
+    amount: cols.indexOf('amount'),
+    note: cols.indexOf('note'),
+    };
+    for(const r of rows){
+    const parts = splitCsv(r);
+    if(idx.date<0 || idx.type<0 || idx.amount<0) continue;
+    txns.push({
+        id: Date.now() + Math.random(),
+        date: parts[idx.date] || '',
+        type: (parts[idx.type] || 'expense').toLowerCase(),
+        category: parts[idx.category] || 'Other',
+        amount: Number(parts[idx.amount] || 0),
+        note: parts[idx.note] || ''
+    });
+    }
+    saveTxns(txns);
+    renderTable();
+    updateDashboard(); // <— keep Home in sync
+};
+input.click();
+});
+
+// ===== Helpers =====
+function cap(s){ return (s||'').charAt(0).toUpperCase() + (s||'').slice(1); }
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function csvEscape(s){ if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`; return s; }
+function splitCsv(line){
+const out=[]; let cur=''; let q=false;
+for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"' ){ if(q && line[i+1]==='"'){ cur+='"'; i++; } else { q=!q; } }
+    else if(ch===',' && !q){ out.push(cur); cur=''; }
+    else { cur+=ch; }
+}
+out.push(cur);
+return out.map(s=>s.trim());
+}
+
+// ===== Dashboard (Home) – KPIs + Charts (NEW) =====
+let pieChart = null;
+let barChart = null;
+
+function monthKey(iso){
+if(!iso) return 'Unknown';
+const [y,m] = iso.split('-');
+if(!y || !m) return 'Unknown';
+return `${y}-${m}`;
+}
+
+function aggregate(list){
+const out = {
+    incomeTotal: 0,
+    expenseTotal: 0,
+    expenseByCat: new Map(),
+    monthly: new Map(), // "YYYY-MM" -> {inc, exp}
+};
+
+for(const t of list){
+    const amt = Number(t.amount||0);
+    const mkey = monthKey(t.date);
+    if(!out.monthly.has(mkey)) out.monthly.set(mkey, {inc:0, exp:0});
+
+    if((t.type||'expense').toLowerCase() === 'income'){
+    out.incomeTotal += amt;
+    out.monthly.get(mkey).inc += amt;
+    }else{
+    out.expenseTotal += amt;
+    out.monthly.get(mkey).exp += amt;
+    const cat = (t.category || 'Other');
+    out.expenseByCat.set(cat, (out.expenseByCat.get(cat)||0) + amt);
+    }
+}
+
+return out;
+}
+
+function renderKPIs(){
+const { incomeTotal, expenseTotal } = aggregate(txns);
+const net = incomeTotal - expenseTotal;
+
+const elInc = document.getElementById('kpi-income');
+const elExp = document.getElementById('kpi-expenses');
+const elNet = document.getElementById('kpi-net');
+
+if(elInc) elInc.textContent = fmtCurrency.format(incomeTotal);
+if(elExp) elExp.textContent = fmtCurrency.format(expenseTotal);
+if(elNet) elNet.textContent = fmtCurrency.format(net);
+}
+
+function renderPie(){
+const ctx = document.getElementById('pie-expenses');
+if(!ctx) return;
+
+const { expenseByCat } = aggregate(txns);
+const labels = [...expenseByCat.keys()];
+const data = [...expenseByCat.values()];
+
+if(pieChart) pieChart.destroy();
+
+pieChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+    labels,
+    datasets: [{ data }]
+    },
+    options: {
+    plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: {
+        label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}`
+        }}
+    }
+    }
+});
+}
+
+function renderBar(){
+const ctx = document.getElementById('bar-monthly');
+if(!ctx) return;
+
+const { monthly } = aggregate(txns);
+const sortedKeys = [...monthly.keys()].sort(); // chronological
+const inc = sortedKeys.map(k => monthly.get(k).inc);
+const exp = sortedKeys.map(k => monthly.get(k).exp);
+
+if(barChart) barChart.destroy();
+
+barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+    labels: sortedKeys,
     datasets: [
-      {
-        label: "Income",
-        data: [2000, 2200, 2100, 2300, 2500, 2400, 2600, 2550, 2700, 2800, 2900, 3000],
-        backgroundColor: cssVar("--accent"),
-      },
-      {
-        label: "Expenses",
-        data: [1800, 1900, 2000, 1950, 2100, 2050, 2150, 2200, 2250, 2300, 2400, 2450],
-        backgroundColor: cssVar("--accent-2"),
-      },
-    ],
-  },
-  options: {
+        { label: 'Income', data: inc },
+        { label: 'Expense', data: exp }
+    ]
+    },
+    options: {
     responsive: true,
+    plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: {
+        label: (ctx) => `${ctx.dataset.label}: ${fmtCurrency.format(ctx.parsed.y||0)}`
+        }}
+    },
     scales: {
-      y: {
-        grid: { color: "rgba(150,150,150,0.1)" },
+        y: {
         beginAtZero: true,
-      },
-      x: {
-        grid: { display: false },
-      },
-    },
-    plugins: {
-      legend: {
-        position: "top",
-        labels: { font: { weight: "600" } },
-      },
-    },
-  },
+        ticks: {
+            callback: (v) => fmtCurrency.format(v)
+        }
+        }
+    }
+    }
 });
+}
+
+function updateDashboard(){
+renderKPIs();
+renderPie();
+renderBar();
+}
+
+// Initial table + dashboard render + default date in form
+renderTable();
+updateDashboard();
+const dateInput = document.getElementById('date');
+if(dateInput && !dateInput.value) dateInput.valueAsDate = new Date();
