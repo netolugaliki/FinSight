@@ -1,90 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Personal Finance Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script defer src="app.js"></script>
-</head>
-<body>
-  <header class="container">
-    <h1>Personal Finance Dashboard</h1>
-    <p class="muted">Local-only • Your data stays in your browser</p>
-  </header>
+  <head>
+    <meta charset="utf-8"/>
+    <title>FinSight</title>
 
-  <main class="container grid">
-    <!-- KPIs -->
-    <section class="card kpis">
-      <div class="kpi"><h3>Income (mo)</h3><div id="kpi-income">$0</div></div>
-      <div class="kpi"><h3>Expenses (mo)</h3><div id="kpi-expenses">$0</div></div>
-      <div class="kpi"><h3>Net (mo)</h3><div id="kpi-net">$0</div></div>
-    </section>
+    <!-- CSS link-->
+    <link rel="stylesheet" href="style.css">
 
-    <!-- Add Transaction -->
-    <section class="card">
-      <h2>Add Transaction</h2>
-      <form id="txn-form">
-        <label>Date <input type="date" id="date" required /></label>
-        <label>Type
-          <select id="type" required>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
-        </label>
-        <label>Category
-          <select id="category"></select>
-        </label>
-        <label>Amount ($) <input type="number" id="amount" step="0.01" min="0" required /></label>
-        <label>Note <input type="text" id="note" placeholder="Optional" /></label>
-        <button type="submit">Add</button>
-      </form>
-    </section>
+    <!--JavaScript link-->
+    <script src="script.js" defer></script>
 
-    <!-- Budgets -->
-    <section class="card">
-      <h2>Budgets (per month)</h2>
-      <div id="budgets"></div>
-      <button id="save-budgets">Save Budgets</button>
-    </section>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="Images/Favicon.png"/>
+
+    <!-- Google Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
 
     <!-- Charts -->
-    <section class="card">
-      <h2>Expenses by Category (This Month)</h2>
-      <canvas id="catChart" height="120"></canvas>
-    </section>
-    <section class="card">
-      <h2>Monthly Cash Flow (Last 12 Months)</h2>
-      <canvas id="flowChart" height="120"></canvas>
-    </section>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
 
-    <!-- Transactions Table -->
-    <section class="card">
-      <div class="table-head">
-        <h2>Transactions</h2>
-        <div class="actions">
-          <button id="export-csv">Export CSV</button>
-          <label class="import">
-            Import CSV <input type="file" id="import-csv" accept=".csv" />
-          </label>
-          <button id="reset-data" class="danger">Reset Data</button>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <img src="Images/Logo.png" alt="FinSight logo">
         </div>
+      </header>
+
+      <div class="shell">
+        <aside>
+          <ul class="nav">
+            <li>
+              <a href="#home">
+                <span class="material-symbols-outlined">home</span>
+                <span>Home</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="#accounts">
+                <span class="material-symbols-outlined">account_balance</span>
+                <span>Accounts</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="#transactions">
+                <span class="material-symbols-outlined">receipt_long</span>
+                <span>Transactions</span>
+              </a>
+            </li>
+
+            <li class="push-bottom">
+              <a href="#settings">
+                <span class="material-symbols-outlined">settings</span>
+                <span>Settings</span>
+              </a>
+            </li>
+
+            <li>
+              <a href="#logout">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Log Out</span>
+              </a>
+            </li>
+          </ul>
+        </aside>
+
+       <main>
+          <!-- PAGES -->
+          <!-- HOME (UPDATED) -->
+          <section id="home" class="page">
+            <h2>Home</h2>
+
+            <div class="home-grid">
+              <!-- KPIs -->
+              <div class="kpis">
+                <div class="kpi">
+                  <h3>Income (Total)</h3>
+                  <div id="kpi-income" class="value">$0</div>
+                </div>
+                <div class="kpi">
+                  <h3>Expenses (Total)</h3>
+                  <div id="kpi-expenses" class="value">$0</div>
+                </div>
+                <div class="kpi">
+                  <h3>Net</h3>
+                  <div id="kpi-net" class="value">$0</div>
+                </div>
+              </div>
+
+              <!-- Helper card -->
+              <div class="card">
+                Your recent activity powers the charts. Add transactions to see insights update live.
+              </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts">
+              <div class="card">
+                <h3 style="margin:0 0 12px 0;">Expenses by Category</h3>
+                <canvas id="pie-expenses"></canvas>
+              </div>
+              <div class="card">
+                <h3 style="margin:0 0 12px 0;">Income vs Expense by Month</h3>
+                <canvas id="bar-monthly"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <section id="accounts" class="page">
+            <h2>Accounts</h2>
+            <div class="card">List of linked accounts will show here.</div>
+          </section>
+
+          <section id="transactions" class="page">
+            <h2>Transactions</h2>
+            
+            <div class="tx-grid">
+              <!-- LEFT: Add Transaction -->
+              <div class="add-tx">
+                <div class="card">
+                  <h2>Add Transaction</h2>
+                  <form id="txn-form">
+                    <label>Date <input type="date" id="date" required /></label>
+                    <label>Type
+                      <select id="type" required>
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                      </select>
+                    </label>
+                    <label>Category
+                      <select id="category">
+                        <option value="Groceries">Groceries</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Salary">Salary</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </label>
+                    <label>Amount ($) <input type="number" id="amount" step="0.01" min="0" required /></label>
+                    <label>Note <input type="text" id="note" placeholder="Optional" /></label>
+                    <button type="submit">Add</button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- RIGHT: Recent Transactions -->
+              <div class="recent-tx">
+                <div class="card">
+                  <div class="card-head">
+                    <h2>Recent transactions</h2>
+                    <div class="toolbar">
+                      <button class="btn btn-teal" id="exportCsvBtn">
+                        <span class="material-symbols-outlined">download</span> Export CSV
+                      </button>
+                      <button class="btn btn-blue" id="importCsvBtn">
+                        <span class="material-symbols-outlined">upload</span> Import CSV
+                      </button>
+                      <button class="btn btn-red" id="resetBtn">
+                        <span class="material-symbols-outlined">restart_alt</span> Reset Data
+                      </button>
+                    </div>
+                  </div>
+
+                  <table class="tx-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="tx-list">
+                      <!-- rows are rendered by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          <section id="settings" class="page">
+            <h2>Settings</h2>
+            <div class="card">Profile, preferences, and integrations.</div>
+          </section>
+
+          <section id="logout" class="page">
+            <h2>Log Out</h2>
+            <div class="card">Sign-out flow will be placed here.</div>
+          </section>
+        </main>
       </div>
-      <table id="txn-table" aria-label="Transactions table">
-        <thead>
-          <tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
-
-  <footer class="container muted">
-    <small>For education only. Not financial advice.</small>
-  </footer>
-
-  <script src="script.js"></script>
-  
-</body>
+    </div>
+  </body>
 </html>
